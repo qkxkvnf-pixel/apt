@@ -19,8 +19,8 @@ jobs:
           python-version: "3.12"
       - name: TOP5 계산
         env:
-          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
-          KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_API }}
+          KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_API }}
         run: python update_top5.py
       - name: 결과 저장
         run: |
