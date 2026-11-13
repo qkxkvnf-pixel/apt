@@ -6,7 +6,7 @@
 - 결과: top5/index.html, top5/data.json
 필요한 환경변수(GitHub Secrets): DATA_GO_KR_KEY, KAKAO_REST_KEY
 """
-import json, math, os, sys, time, datetime, urllib.request, urllib.parse
+import json, math, os, sys, time, datetime, urllib.request, urllib.parse, urllib.error
 import xml.etree.ElementTree as ET
 
 RADIUS_KM = 5.0
@@ -79,6 +79,11 @@ def http_get(url, params=None, headers=None, tries=3):
             req = urllib.request.Request(url, headers=headers or {})
             with urllib.request.urlopen(req, timeout=40) as r:
                 return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                raise PermissionError("HTTP %d (권한 없음)" % e.code)
+            last = e
+            time.sleep(1.5 * (i + 1))
         except Exception as e:  # noqa
             last = e
             time.sleep(1.5 * (i + 1))
@@ -127,6 +132,22 @@ def fetch_all(url, key, lawd, ymd):
         if page * 1000 >= total or not items:
             return rows
         page += 1
+
+
+def preflight(key):
+    ym = recent_months(2)[-1]
+    names = (("sale", TRADE_URL, "국토교통부_아파트 매매 실거래가 상세 자료"),
+             ("jeonse", RENT_URL, "국토교통부_아파트 전월세 실거래가 자료"))
+    bad = []
+    for kind, url, label in names:
+        try:
+            http_get(url, {"serviceKey": key, "LAWD_CD": "41285", "DEAL_YMD": ym,
+                           "numOfRows": 1, "pageNo": 1})
+        except PermissionError:
+            bad.append(label)
+    if bad:
+        sys.exit("공공데이터포털에서 아래 API가 아직 승인되지 않았거나 키가 맞지 않습니다: "
+                 + " / ".join(bad) + "\n활용신청 승인 후(최대 1~2시간) 다시 실행하세요.")
 
 
 def collect(key):
@@ -321,6 +342,7 @@ def main():
         sys.exit("DATA_GO_KR_KEY, KAKAO_REST_KEY 비밀값이 설정되지 않았습니다.")
     key = urllib.parse.unquote(key)  # 인코딩된 키를 붙여넣었어도 동작하게 함
 
+    preflight(key)
     cache = load_cache()
     branch_pos = {}
     for _, name, addr in BRANCHES:
