@@ -280,8 +280,8 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>지점별 아파트 거래 TOP5</title>
 <style>
-:root{--bg:#f6f5f3;--sf:#fff;--fg:#1f2124;--mu:#6a6e75;--ln:#dfddd8;--ac:#a50034;--sa:#a50034;--je:#1d5f8a;--so:#f0eeea}
-@media(prefers-color-scheme:dark){:root{--bg:#16171a;--sf:#1f2125;--fg:#ececea;--mu:#9a9ea5;--ln:#33363c;--ac:#ff5c85;--sa:#ff7a9c;--je:#6ab4e6;--so:#272a2f;color-scheme:dark}}
+:root{--bg:#f6f5f3;--sf:#fff;--fg:#1f2124;--mu:#6a6e75;--ln:#dfddd8;--ac:#a50034;--af:#fff;--sa:#a50034;--je:#1d5f8a;--so:#f0eeea}
+@media(prefers-color-scheme:dark){:root{--bg:#16171a;--sf:#1f2125;--fg:#ececea;--mu:#9a9ea5;--ln:#33363c;--ac:#ff5c85;--af:#16171a;--sa:#ff7a9c;--je:#6ab4e6;--so:#272a2f;color-scheme:dark}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.55 system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;padding:20px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
 .w{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 h1{font-size:20px;margin:0}h2{font-size:15px;margin:0 0 8px}
@@ -293,13 +293,23 @@ h1{font-size:20px;margin:0}h2{font-size:15px;margin:0 0 8px}
 .r b{font-variant-numeric:tabular-nums}.n{font-weight:700;color:var(--mu)}.r:first-of-type .n{color:var(--ac)}
 .s{font-size:12px;color:var(--mu)}.t{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:480px}
 th,td{text-align:left;padding:6px 8px;border-top:1px solid var(--ln)}th{font-size:12px;color:var(--mu);font-weight:500;border-top:0}
-tbody tr{cursor:pointer}tbody tr:hover{background:var(--so)}
+tbody tr{cursor:pointer}tbody tr:hover td{background:var(--so)}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tabs button{font:inherit;border:1px solid var(--ln);background:transparent;color:var(--fg);padding:7px 18px;border-radius:6px;cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--ac);border-color:var(--ac);color:var(--af);font-weight:700}
+.tabs button:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+#sumt{min-width:820px}#sumt td{vertical-align:top;background:var(--sf)}
+#sumt th:first-child,#sumt td:first-child{position:sticky;left:0;background:var(--sf);white-space:nowrap;z-index:1}
+#sumt .c{font-weight:700}#sumt .d{font-size:12px;color:var(--mu)}
 </style></head><body><div class="w">
 <div><h1>지점별 아파트 거래 TOP5</h1>
 <p class="mu" style="margin:2px 0 0">지점 반경 5km 안 아파트 단지, 최근 3개월 실거래 건수 기준 (매물 수가 아닙니다)</p></div>
+<div class="card"><h2>전체 요약</h2>
+<div class="tabs" role="tablist"><button type="button" role="tab" id="tb-sale" aria-selected="true">매매</button><button type="button" role="tab" id="tb-jeonse" aria-selected="false">전세</button></div>
+<div class="t"><table id="sumt"><thead><tr><th>지점</th><th>1위</th><th>2위</th><th>3위</th><th>4위</th><th>5위</th></tr></thead><tbody id="sum"></tbody></table></div>
+<p class="mu s" style="margin:8px 0 0">지점 줄을 누르면 아래에 그 지점의 상세가 나옵니다.</p></div>
 <div><select id="sel" aria-label="지점 선택"></select> <span class="mu s" id="upd"></span></div>
 <div id="out"></div>
-<div class="card"><h2>전체 요약 (1위 단지)</h2><div class="t"><table><thead><tr><th>지점</th><th>매매 1위</th><th>전세 1위</th></tr></thead><tbody id="sum"></tbody></table></div></div>
 </div>
 <script>
 var D=__DATA__;
@@ -317,11 +327,19 @@ var s=document.getElementById('sel');
 D.branches.forEach(function(b,i){var o=e('option',null,b.group+' · '+b.name);o.value=i;s.appendChild(o)});
 s.onchange=function(){show(+s.value)};
 document.getElementById('upd').textContent='업데이트 '+D.updated+' · 기간 '+D.period;
-var sm=document.getElementById('sum');
-D.branches.forEach(function(b,i){var tr=e('tr');tr.appendChild(e('td',null,b.name));
- [b.sale,b.jeonse].forEach(function(r){tr.appendChild(e('td',r.length?null:'mu',r.length?r[0].name+' '+r[0].count+'건':'-'))});
- tr.onclick=function(){s.value=i;show(i);window.scrollTo(0,0)};sm.appendChild(tr)});
-show(0);
+var sm=document.getElementById('sum'),kind='sale';
+function sumShow(){sm.textContent='';
+ document.getElementById('tb-sale').setAttribute('aria-selected',kind==='sale');
+ document.getElementById('tb-jeonse').setAttribute('aria-selected',kind==='jeonse');
+ D.branches.forEach(function(b,i){var tr=e('tr');var f=e('td',null,b.name);tr.appendChild(f);
+  var rows=b[kind];
+  for(var k=0;k<5;k++){var td=e('td');var r=rows[k];
+   if(r){td.appendChild(e('div','c',r.name));td.appendChild(e('div','d',r.count+'건 · '+r.dong))}else{td.className='mu';td.textContent='-'}
+   tr.appendChild(td)}
+  tr.onclick=function(){s.value=i;show(i);document.getElementById('sel').scrollIntoView()};sm.appendChild(tr)})}
+document.getElementById('tb-sale').onclick=function(){kind='sale';sumShow()};
+document.getElementById('tb-jeonse').onclick=function(){kind='jeonse';sumShow()};
+sumShow();show(0);
 </script></body></html>
 """
 
