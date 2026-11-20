@@ -293,13 +293,25 @@ h1{font-size:20px;margin:0}h2{font-size:15px;margin:0 0 8px}
 .r b{font-variant-numeric:tabular-nums}.n{font-weight:700;color:var(--mu)}.r:first-of-type .n{color:var(--ac)}
 .s{font-size:12px;color:var(--mu)}.t{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:480px}
 th,td{text-align:left;padding:6px 8px;border-top:1px solid var(--ln)}th{font-size:12px;color:var(--mu);font-weight:500;border-top:0}
-tbody tr{cursor:pointer}tbody tr:hover td{background:var(--so)}
+
 .tabs{display:flex;gap:6px;margin-bottom:10px}
 .tabs button{font:inherit;border:1px solid var(--ln);background:transparent;color:var(--fg);padding:7px 18px;border-radius:6px;cursor:pointer}
 .tabs button[aria-selected=true]{background:var(--ac);border-color:var(--ac);color:var(--af);font-weight:700}
 .tabs button:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 #sumt{min-width:820px}#sumt td{vertical-align:top;background:var(--sf)}
-#sumt th:first-child,#sumt td:first-child{position:sticky;left:0;background:var(--sf);white-space:nowrap;z-index:1}
+#sumt th:first-child,#sumt tr.br td:first-child{position:sticky;left:0;background:var(--sf);white-space:nowrap;z-index:1}
+.nb{display:flex;gap:4px;margin-top:5px}
+.nb button{font:inherit;font-size:12px;padding:2px 10px;border:1px solid var(--ln);background:transparent;color:var(--fg);border-radius:6px;cursor:pointer}
+.nb button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.nb button.sale[aria-pressed=true]{background:var(--sa);border-color:var(--sa);color:var(--af);font-weight:700}
+.nb button.jeonse[aria-pressed=true]{background:var(--je);border-color:var(--je);color:var(--af);font-weight:700}
+.ch{position:sticky;left:0;width:min(720px,calc(100vw - 92px));padding:6px 0 8px}
+.ch .ct{font-weight:700;margin-bottom:6px}
+.bl{display:grid;grid-template-columns:minmax(90px,30%) minmax(0,1fr) 44px;gap:10px;align-items:center;padding:4px 0}
+.bl small{display:block;font-size:12px;color:var(--mu)}
+.bt{background:var(--so);border-radius:4px;height:20px}
+.bf{height:100%;border-radius:4px}.bf.sale{background:var(--sa)}.bf.jeonse{background:var(--je)}
+.bv{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
 #sumt .c{font-weight:700}#sumt .d{font-size:12px;color:var(--mu)}
 </style></head><body><div class="w">
 <div><h1>지점별 아파트 거래 TOP5</h1>
@@ -307,7 +319,7 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:var(--so)}
 <div class="card"><h2>전체 요약</h2>
 <div class="tabs" role="tablist"><button type="button" role="tab" id="tb-sale" aria-selected="true">매매</button><button type="button" role="tab" id="tb-jeonse" aria-selected="false">전세</button></div>
 <div class="t"><table id="sumt"><thead><tr><th>지점</th><th>1위</th><th>2위</th><th>3위</th><th>4위</th><th>5위</th></tr></thead><tbody id="sum"></tbody></table></div>
-<p class="mu s" style="margin:8px 0 0">지점 줄을 누르면 아래에 그 지점의 상세가 나옵니다.</p></div>
+<p class="mu s" style="margin:8px 0 0">지점 이름 아래의 매매/전세 버튼을 누르면 그 지점의 TOP5 막대그래프가 열립니다. 같은 버튼을 다시 누르면 닫힙니다.</p></div>
 <div><select id="sel" aria-label="지점 선택"></select> <span class="mu s" id="upd"></span></div>
 <div id="out"></div>
 </div>
@@ -327,16 +339,28 @@ var s=document.getElementById('sel');
 D.branches.forEach(function(b,i){var o=e('option',null,b.group+' · '+b.name);o.value=i;s.appendChild(o)});
 s.onchange=function(){show(+s.value)};
 document.getElementById('upd').textContent='업데이트 '+D.updated+' · 기간 '+D.period;
-var sm=document.getElementById('sum'),kind='sale';
+var sm=document.getElementById('sum'),kind='sale',opened=null;
+var KL={sale:'매매',jeonse:'전세'};
+function chart(b,k){var c=e('div','ch');c.appendChild(e('div','ct',b.name+' '+KL[k]+' TOP5 (거래 건수)'));
+ var rows=b[k];if(!rows.length){c.appendChild(e('div','mu','반경 5km 안에서 집계된 거래가 없습니다.'));return c}
+ var mx=rows[0].count||1;
+ rows.forEach(function(r,j){var l=e('div','bl');var n=e('span');n.appendChild(document.createTextNode((j+1)+'. '+r.name));n.appendChild(e('small',null,r.dong+' · 약 '+r.km+'km'));l.appendChild(n);
+  var t=e('div','bt');var f=e('div','bf '+k);f.style.width=Math.max(2,r.count/mx*100)+'%';t.appendChild(f);l.appendChild(t);
+  l.appendChild(e('span','bv',r.count+'건'));c.appendChild(l)});return c}
 function sumShow(){sm.textContent='';
  document.getElementById('tb-sale').setAttribute('aria-selected',kind==='sale');
  document.getElementById('tb-jeonse').setAttribute('aria-selected',kind==='jeonse');
- D.branches.forEach(function(b,i){var tr=e('tr');var f=e('td',null,b.name);tr.appendChild(f);
+ D.branches.forEach(function(b,i){var tr=e('tr','br');var f=e('td');f.appendChild(e('div',null,b.name));
+  var nb=e('div','nb');['sale','jeonse'].forEach(function(k){var bt=e('button',k,KL[k]);bt.type='button';
+   bt.setAttribute('aria-pressed',!!(opened&&opened.i===i&&opened.k===k));
+   bt.onclick=function(){opened=(opened&&opened.i===i&&opened.k===k)?null:{i:i,k:k};sumShow()};nb.appendChild(bt)});
+  f.appendChild(nb);tr.appendChild(f);
   var rows=b[kind];
   for(var k=0;k<5;k++){var td=e('td');var r=rows[k];
    if(r){td.appendChild(e('div','c',r.name));td.appendChild(e('div','d',r.count+'건 · '+r.dong))}else{td.className='mu';td.textContent='-'}
    tr.appendChild(td)}
-  tr.onclick=function(){s.value=i;show(i);document.getElementById('sel').scrollIntoView()};sm.appendChild(tr)})}
+  sm.appendChild(tr);
+  if(opened&&opened.i===i){var xr=e('tr','xr');var xd=e('td');xd.colSpan=6;xd.appendChild(chart(b,opened.k));xr.appendChild(xd);sm.appendChild(xr)}})}
 document.getElementById('tb-sale').onclick=function(){kind='sale';sumShow()};
 document.getElementById('tb-jeonse').onclick=function(){kind='jeonse';sumShow()};
 sumShow();show(0);
